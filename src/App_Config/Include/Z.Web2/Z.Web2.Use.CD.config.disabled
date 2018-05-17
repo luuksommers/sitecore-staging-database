@@ -13,10 +13,6 @@
         </add>
       </providers>
     </siteManager>
-    <allego>
-      <databaseConfiguration  name="AllegoFrontoffice databaseConfiguration" tenant="*" site="*">
-        <database>web2</database>
-      </databaseConfiguration>
-    </allego>
+
   </sitecore>
 </configuration>
