@@ -1,0 +1,8 @@
+<parameters>
+      <parameter name="Application Path" description="Full site path where you would like to install your application (i.e., Default Web Site/Content)" defaultValue="Default Web Site/Content" tags="iisapp">
+    <parameterEntry type="ProviderPath" scope="iisapp" match="WebSite" />
+  </parameter> 
+   <parameter name="Web2 Connection String" description="Connection string to second web database" tags="Hidden, NoStore">
+    <parameterEntry kind="XmlFile" scope="App_Data\\Transforms\\Web2\\Xdts\\App_Config\\ConnectionStrings\.config\.xdt$" match="//connectionStrings/add[@name='web2']/@connectionString" />
+  </parameter>
+</parameters>

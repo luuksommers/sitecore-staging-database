@@ -1,0 +1,22 @@
+<configuration xmlns:patch="http://www.sitecore.net/xmlconfig/">
+  <sitecore>
+    <sites>
+      <site name="website">
+        <patch:attribute name="database">web2</patch:attribute>
+      </site>
+    </sites>
+    <siteManager defaultProvider="sitecore">
+      <providers>
+        <add name="sxa">
+          <patch:attribute name="database">web2</patch:attribute>
+          <patch:attribute name="type">Allego.Asp.Foundation.ExperienceAccelerator.Providers.StagingSxaSiteProvider, Allego.Asp.Foundation.ExperienceAccelerator</patch:attribute>
+        </add>
+      </providers>
+    </siteManager>
+    <allego>
+      <databaseConfiguration  name="AllegoFrontoffice databaseConfiguration" tenant="*" site="*">
+        <database>web2</database>
+      </databaseConfiguration>
+    </allego>
+  </sitecore>
+</configuration>

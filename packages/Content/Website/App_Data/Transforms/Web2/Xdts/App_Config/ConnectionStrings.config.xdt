@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<connectionStrings xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+	<add name="web2" connectionString="Web2 Connection String" xdt:Transform="Insert" />
+</connectionStrings>

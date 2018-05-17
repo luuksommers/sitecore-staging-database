@@ -1,0 +1,185 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "standard": {
+      "type": "secureObject",
+      "defaultValue": {
+        "infrastructure": {
+          "sqlServerFqdn": null,
+          "webSqlServerFqdn": null
+        },
+        "deploymentId": null,
+        "location": null,
+        "cmWebAppName": null,
+        "webSqlServerName": null,
+        "webSqlServerFqdn": null,
+        "cdWebSqlDatabaseUserName": null,
+        "cdWebSqlDatabasePassword": null,
+        "webSqlDatabaseName": null
+      }
+    },
+    "extension": {
+      "type": "secureObject",
+      "defaultValue": {
+        "addWeb2MsDeployPackageUrl": null,
+        "copyDatabase": null
+      }
+    },
+    "copyDatabase": {
+      "type": "string",
+      "defaultValue": "[parameters('extension').copyDatabase]"
+    },
+    "environmentPrefix": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').environmentPrefix]"
+    },
+    "environmentIndex": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').environmentIndex]"
+    },
+    "cdWebSqlDatabaseUserName": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').cdWebSqlDatabaseUserName]"
+    },
+    "cdWebSqlDatabasePassword": {
+      "type": "securestring",
+      "defaultValue": "[parameters('standard').cdWebSqlDatabasePassword]"
+    },
+    "webSqlServerName": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').webSqlServerName]"
+    },
+    "webSqlServerFqdn": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').infrastructure.webSqlServerFqdn]"
+    },
+    "webSqlDatabaseName": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').webSqlDatabaseName]"
+    },
+    "cdWebAppName": {
+      "type": "string",
+      "defaultValue": "[parameters('standard').cdWebAppName]"
+    },
+    "cmWebAppName": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "[parameters('standard').cmWebAppName]"
+    },
+    "ddsWebAppName": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "[concat(parameters('environmentPrefix'), 'AllWeuAspSitAs', parameters('environmentIndex'), 'dds')]"
+    },
+    "location": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "[coalesce(parameters('standard').location, resourceGroup().location)]"
+    },
+    "addWeb2MsDeployPackageUrl": {
+      "type": "securestring",
+      "minLength": 1,
+      "defaultValue": "[parameters('extension').addWeb2MsDeployPackageUrl]"
+    }
+  },
+  "variables": {
+    "webApiVersion": "2016-08-01",
+    "cdWebAppNameTidy": "[toLower(trim(parameters('cdWebAppName')))]",
+    "cmWebAppNameTidy": "[toLower(trim(parameters('cmWebAppName')))]",
+    "ddsWebAppNameTidy": "[toLower(trim(parameters('ddsWebAppName')))]",
+    "webSqlServerFqdnTidy": "[trim(toLower(parameters('webSqlServerFqdn')))]",
+    "webSqlServerNameTidy": "[trim(toLower(parameters('webSqlServerName')))]",
+    "webSqlDatabaseNameTidy": "[trim(toLower(parameters('webSqlDatabaseName')))]",
+    "web2SqlDatabaseNameTidy": "[trim(toLower(concat(parameters('webSqlDatabaseName'), '2')))]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2014-04-01-preview",
+      "location": "[parameters('location')]",
+      "condition": "[equals(parameters('copyDatabase'),'true')]",
+      "name": "[concat(variables('webSqlServerNameTidy'), '/', variables('web2SqlDatabaseNameTidy'))]",
+      "properties": {
+        "createMode": "Copy",
+        "sourceDatabaseId": "[resourceId('Microsoft.Sql/servers/databases',variables('webSqlServerNameTidy'), variables('webSqlDatabaseNameTidy'))]"
+      },
+      "type": "Microsoft.Sql/servers/databases"
+    },
+    {
+      "name": "[variables('cdWebAppNameTidy')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[parameters('location')]",
+      "apiVersion": "[variables('webApiVersion')]",
+      "properties": {},
+      "resources": [
+        {
+          "type": "slots",
+          "name": "cd-staging",
+          "apiVersion": "[variables('webApiVersion')]",
+          "location": "[parameters('location')]",
+          "properties": {},
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', variables('cdWebAppNameTidy'))]"
+          ],
+          "resources": [
+            {
+              "name": "MSDeploy",
+              "type": "extensions",
+              "location": "[parameters('location')]",
+              "apiVersion": "[variables('webApiVersion')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites/slots', variables('cdWebAppNameTidy'), 'cd-staging')]",
+                "[resourceId('Microsoft.Sql/servers/databases',variables('webSqlServerNameTidy'), variables('web2SqlDatabaseNameTidy'))]"
+              ],
+              "properties": {
+                "addOnPackages": [
+                  {
+                    "packageUri": "[parameters('addWeb2MsDeployPackageUrl')]",
+                    "setParameters": {
+                      "Application Path": "[variables('cdWebAppNameTidy')]",
+                      "Web2 Connection String": "[concat('Encrypt=True;TrustServerCertificate=False;Data Source=', variables('webSqlServerFqdnTidy'), ',1433;Initial Catalog=',variables('web2SqlDatabaseNameTidy'),';User Id=', parameters('cdWebSqlDatabaseUserName'), ';Password=', parameters('cdWebSqlDatabasePassword'), ';')]"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "[concat(variables('cmWebAppNameTidy'), '/', 'MSDeploy')]",
+      "type": "Microsoft.Web/sites/extensions",
+      "location": "[parameters('location')]",
+      "apiVersion": "[variables('webApiVersion')]",
+      "properties": {
+        "addOnPackages": [
+          {
+            "packageUri": "[parameters('addWeb2MsDeployPackageUrl')]",
+            "setParameters": {
+              "Application Path": "[variables('cmWebAppNameTidy')]",
+              "Web2 Connection String": "[concat('Encrypt=True;TrustServerCertificate=False;Data Source=', variables('webSqlServerFqdnTidy'), ',1433;Initial Catalog=',variables('web2SqlDatabaseNameTidy'),';User Id=', parameters('cdWebSqlDatabaseUserName'), ';Password=', parameters('cdWebSqlDatabasePassword'), ';')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[concat(variables('ddsWebAppNameTidy'), '/', 'MSDeploy')]",
+      "type": "Microsoft.Web/sites/extensions",
+      "location": "[parameters('location')]",
+      "apiVersion": "[variables('webApiVersion')]",
+      "properties": {
+        "addOnPackages": [
+          {
+            "packageUri": "[parameters('addWeb2MsDeployPackageUrl')]",
+            "setParameters": {
+              "Application Path": "[variables('ddsWebAppNameTidy')]",
+              "Web2 Connection String": "[concat('Encrypt=True;TrustServerCertificate=False;Data Source=', variables('webSqlServerFqdnTidy'), ',1433;Initial Catalog=',variables('web2SqlDatabaseNameTidy'),';User Id=', parameters('cdWebSqlDatabaseUserName'), ';Password=', parameters('cdWebSqlDatabasePassword'), ';')]"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
